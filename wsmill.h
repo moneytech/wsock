@@ -74,7 +74,12 @@
 /*  wsmill library                                                            */
 /******************************************************************************/
 
-/* TODO */
+typedef struct wsock *wsock;
+
+WSMILL_EXPORT wsock wsocklisten(int port);
+WSMILL_EXPORT wsock wsockaccept(wsock s, int64_t deadline);
+WSMILL_EXPORT wsock wsockconnect(ipaddr addr, int64_t deadline);
+WSMILL_EXPORT void wsockclose(wsock s);
 
 #endif
 
