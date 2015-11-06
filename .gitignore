@@ -10,3 +10,14 @@ ltmain.sh
 Makefile.in
 missing
 test-driver
+.deps/
+.libs/
+Makefile
+config.h
+config.log
+config.status
+libtool
+*.la
+*.lo
+*.o
+wsmill.pc

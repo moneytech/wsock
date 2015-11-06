@@ -41,9 +41,9 @@ AC_CANONICAL_HOST
 AC_PROG_SED
 AC_PROG_AWK
 
-TCPMUX_ABI_VERSION=m4_esyscmd([./abi_version.sh])
-TCPMUX_PACKAGE_VERSION=m4_esyscmd([./package_version.sh])
-TCPMUX_LIBTOOL_VERSION=m4_esyscmd([./abi_version.sh -libtool])
+WSMILL_ABI_VERSION=m4_esyscmd([./abi_version.sh])
+WSMILL_PACKAGE_VERSION=m4_esyscmd([./package_version.sh])
+WSMILL_LIBTOOL_VERSION=m4_esyscmd([./abi_version.sh -libtool])
 
 AC_SUBST(WSMILL_ABI_VERSION)
 AC_SUBST(WSMILL_PACKAGE_VERSION)
