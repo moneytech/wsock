@@ -42,6 +42,14 @@ wsock wsockconnect(ipaddr addr, int64_t deadline) {
     assert(0);
 }
 
+size_t wsocksend(wsock s, const void *msg, size_t len) {
+    assert(0);
+}
+
+size_t wsockrecv(wsock s, void *msg, size_t len) {
+    assert(0);
+}
+
 void wsockclose(wsock s) {
     assert(0);
 }

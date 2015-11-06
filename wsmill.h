@@ -79,6 +79,8 @@ typedef struct wsock *wsock;
 WSMILL_EXPORT wsock wsocklisten(int port);
 WSMILL_EXPORT wsock wsockaccept(wsock s, int64_t deadline);
 WSMILL_EXPORT wsock wsockconnect(ipaddr addr, int64_t deadline);
+WSMILL_EXPORT size_t wsocksend(wsock s, const void *msg, size_t len);
+WSMILL_EXPORT size_t wsockrecv(wsock s, void *msg, size_t len); 
 WSMILL_EXPORT void wsockclose(wsock s);
 
 #endif
