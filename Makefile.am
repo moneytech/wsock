@@ -32,6 +32,8 @@ wsockinclude_HEADERS = wsock.h
 lib_LTLIBRARIES = libwsock.la
 
 libwsock_la_SOURCES = \
+    base64.h \
+    base64.c \
     sha1.h \
     sha1.c \
     wsock.h \
