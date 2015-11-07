@@ -26,9 +26,9 @@
 
 AC_PREREQ([2.53])
 
-AC_INIT([wsmill], [m4_esyscmd([./package_version.sh])],
-   [libmill@freelists.org], [wsmill], [http://libmill.org/])
-AC_CONFIG_SRCDIR([wsmill.pc.in])
+AC_INIT([wsock], [m4_esyscmd([./package_version.sh])],
+   [libmill@freelists.org], [wsock], [http://libmill.org/])
+AC_CONFIG_SRCDIR([wsock.pc.in])
 AM_INIT_AUTOMAKE([1.6 foreign subdir-objects tar-ustar])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
@@ -41,16 +41,16 @@ AC_CANONICAL_HOST
 AC_PROG_SED
 AC_PROG_AWK
 
-WSMILL_ABI_VERSION=m4_esyscmd([./abi_version.sh])
-WSMILL_PACKAGE_VERSION=m4_esyscmd([./package_version.sh])
-WSMILL_LIBTOOL_VERSION=m4_esyscmd([./abi_version.sh -libtool])
+WSOCK_ABI_VERSION=m4_esyscmd([./abi_version.sh])
+WSOCK_PACKAGE_VERSION=m4_esyscmd([./package_version.sh])
+WSOCK_LIBTOOL_VERSION=m4_esyscmd([./abi_version.sh -libtool])
 
-AC_SUBST(WSMILL_ABI_VERSION)
-AC_SUBST(WSMILL_PACKAGE_VERSION)
-AC_SUBST(WSMILL_LIBTOOL_VERSION)
+AC_SUBST(WSOCK_ABI_VERSION)
+AC_SUBST(WSOCK_PACKAGE_VERSION)
+AC_SUBST(WSOCK_LIBTOOL_VERSION)
 
-AC_MSG_NOTICE([wsmill package version: $WSMILL_PACKAGE_VERSION])
-AC_MSG_NOTICE([wsmill ABI version: $WSMILL_ABI_VERSION])
+AC_MSG_NOTICE([wsock package version: $WSOCK_PACKAGE_VERSION])
+AC_MSG_NOTICE([wsock ABI version: $WSOCK_ABI_VERSION])
 
 ################################################################################
 #  Check the compilers.                                                        #
@@ -90,6 +90,6 @@ LT_INIT
 
 AC_CONFIG_MACRO_DIR([m4])
 
-AC_OUTPUT([Makefile wsmill.pc])
+AC_OUTPUT([Makefile wsock.pc])
 cp confdefs.h config.h
 

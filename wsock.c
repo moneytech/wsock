@@ -25,7 +25,7 @@
 
 #include <assert.h>
 
-#include "wsmill.h"
+#include "wsock.h"
 
 struct wsock {
 };

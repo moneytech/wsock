@@ -22,8 +22,8 @@
 
 */
 
-#ifndef WSMILL_H_INCLUDED
-#define WSMILL_H_INCLUDED
+#ifndef WSOCK_H_INCLUDED
+#define WSOCK_H_INCLUDED
 
 #include <libmill.h>
 
@@ -37,51 +37,51 @@
 /*  www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html  */
 
 /*  The current interface version. */
-#define WSMILL_VERSION_CURRENT 0
+#define WSOCK_VERSION_CURRENT 0
 
 /*  The latest revision of the current interface. */
-#define WSMILL_VERSION_REVISION 0
+#define WSOCK_VERSION_REVISION 0
 
 /*  How many past interface versions are still supported. */
-#define WSMILL_VERSION_AGE 0
+#define WSOCK_VERSION_AGE 0
 
 /******************************************************************************/
 /*  Symbol visibility                                                         */
 /******************************************************************************/
 
-#if defined WSMILL_NO_EXPORTS
-#   define WSMILL_EXPORT
+#if defined WSOCK_NO_EXPORTS
+#   define WSOCK_EXPORT
 #else
 #   if defined _WIN32
-#      if defined WSMILL_EXPORTS
-#          define WSMILL_EXPORT __declspec(dllexport)
+#      if defined WSOCK_EXPORTS
+#          define WSOCK_EXPORT __declspec(dllexport)
 #      else
-#          define WSMILL_EXPORT __declspec(dllimport)
+#          define WSOCK_EXPORT __declspec(dllimport)
 #      endif
 #   else
 #      if defined __SUNPRO_C
-#          define WSMILL_EXPORT __global
+#          define WSOCK_EXPORT __global
 #      elif (defined __GNUC__ && __GNUC__ >= 4) || \
              defined __INTEL_COMPILER || defined __clang__
-#          define WSMILL_EXPORT __attribute__ ((visibility("default")))
+#          define WSOCK_EXPORT __attribute__ ((visibility("default")))
 #      else
-#          define WSMILL_EXPORT
+#          define WSOCK_EXPORT
 #      endif
 #   endif
 #endif
 
 /******************************************************************************/
-/*  wsmill library                                                            */
+/*  wsock library                                                             */
 /******************************************************************************/
 
 typedef struct wsock *wsock;
 
-WSMILL_EXPORT wsock wsocklisten(int port);
-WSMILL_EXPORT wsock wsockaccept(wsock s, int64_t deadline);
-WSMILL_EXPORT wsock wsockconnect(ipaddr addr, int64_t deadline);
-WSMILL_EXPORT size_t wsocksend(wsock s, const void *msg, size_t len);
-WSMILL_EXPORT size_t wsockrecv(wsock s, void *msg, size_t len); 
-WSMILL_EXPORT void wsockclose(wsock s);
+WSOCK_EXPORT wsock wsocklisten(int port);
+WSOCK_EXPORT wsock wsockaccept(wsock s, int64_t deadline);
+WSOCK_EXPORT wsock wsockconnect(ipaddr addr, int64_t deadline);
+WSOCK_EXPORT size_t wsocksend(wsock s, const void *msg, size_t len);
+WSOCK_EXPORT size_t wsockrecv(wsock s, void *msg, size_t len); 
+WSOCK_EXPORT void wsockclose(wsock s);
 
 #endif
 

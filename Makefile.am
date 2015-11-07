@@ -23,25 +23,25 @@
 ACLOCAL_AMFLAGS = -I m4
 
 ################################################################################
-#  wsmill                                                                      #
+#  wsock                                                                      #
 ################################################################################
 
-wsmillincludedir = $(includedir)
-wsmillinclude_HEADERS = wsmill.h
+wsockincludedir = $(includedir)
+wsockinclude_HEADERS = wsock.h
 
-lib_LTLIBRARIES = libwsmill.la
+lib_LTLIBRARIES = libwsock.la
 
-libwsmill_la_SOURCES = \
-    wsmill.c
+libwsock_la_SOURCES = \
+    wsock.c
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = wsmill.pc
+pkgconfig_DATA = wsock.pc
 
-libwsmill_la_LDFLAGS = -no-undefined -version-info @WSMILL_LIBTOOL_VERSION@
+libwsock_la_LDFLAGS = -no-undefined -version-info @WSOCK_LIBTOOL_VERSION@
 
-libwsmill_la_CFLAGS = \
+libwsock_la_CFLAGS = \
     -fvisibility=hidden\
-    -DWSMILL_EXPORTS
+    -DWSOCK_EXPORTS
 
 ################################################################################
 #  automated tests                                                             #
@@ -50,7 +50,7 @@ libwsmill_la_CFLAGS = \
 check_PROGRAMS = \
     tests/e2e
 
-LDADD = libwsmill.la
+LDADD = libwsock.la
 
 TESTS = $(check_PROGRAMS)
 

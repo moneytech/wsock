@@ -3,10 +3,10 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: wsmill
-Description: WeSocket library (RFC 6455)
+Name: wsock
+Description: WeSocket library for libmill (RFC 6455)
 URL: http://libmill.org/
-Version: @WSMILL_ABI_VERSION@
+Version: @WSOCK_ABI_VERSION@
 Requires:
-Libs: -L${libdir} -lwsmill @LIBS@
+Libs: -L${libdir} -lwsock @LIBS@
 Cflags: -I${includedir}

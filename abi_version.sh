@@ -20,17 +20,17 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-if [ ! -f wsmill.h ]; then
-    echo "abi_version.sh: error: wsmill.h does not exist" 1>&2
+if [ ! -f wsock.h ]; then
+    echo "abi_version.sh: error: wsock.h does not exist" 1>&2
     exit 1
 fi
 
-CURRENT=`egrep '^#define +WSMILL_VERSION_CURRENT +[0-9]+$' wsmill.h`
-REVISION=`egrep '^#define +WSMILL_VERSION_REVISION +[0-9]+$' wsmill.h`
-AGE=`egrep '^#define +WSMILL_VERSION_AGE +[0-9]+$' wsmill.h`
+CURRENT=`egrep '^#define +WSOCK_VERSION_CURRENT +[0-9]+$' wsock.h`
+REVISION=`egrep '^#define +WSOCK_VERSION_REVISION +[0-9]+$' wsock.h`
+AGE=`egrep '^#define +WSOCK_VERSION_AGE +[0-9]+$' wsock.h`
 
 if [ -z "$CURRENT" -o -z "$REVISION" -o -z "$AGE" ]; then
-    echo "abi_version.sh: error: could not extract version from wsmill.h" 1>&2
+    echo "abi_version.sh: error: could not extract version from wsock.h" 1>&2
     exit 1
 fi
 

@@ -1,1 +1,1 @@
-wsmill is WebSocket library for libmill
+wsock is WebSocket library for libmill
