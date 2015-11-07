@@ -20,4 +20,4 @@ libtool
 *.la
 *.lo
 *.o
-wsmill.pc
+wsock.pc
