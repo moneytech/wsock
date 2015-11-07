@@ -32,6 +32,9 @@ wsockinclude_HEADERS = wsock.h
 lib_LTLIBRARIES = libwsock.la
 
 libwsock_la_SOURCES = \
+    sha1.h \
+    sha1.c \
+    wsock.h \
     wsock.c
 
 pkgconfigdir = $(libdir)/pkgconfig
