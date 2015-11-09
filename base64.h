@@ -31,11 +31,11 @@
 
 /*  This function encodes an arbitrary byte array into base64
     null-terminated string. */
-int wsock_base64_encode (const uint8_t *in, size_t in_len,
+int wsock_base64_encode(const uint8_t *in, size_t in_len,
     char *out, size_t out_len);
 
 /*  This function decodes a base64 string into supplied buffer. */
-int wsock_base64_decode (const char *in, size_t in_len,
+int wsock_base64_decode(const char *in, size_t in_len,
     uint8_t *out, size_t out_len);
 
 #endif

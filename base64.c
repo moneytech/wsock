@@ -24,7 +24,7 @@
 
 #include <ctype.h>
 
-int wsock_base64_decode (const char *in, size_t in_len,
+int wsock_base64_decode(const char *in, size_t in_len,
     uint8_t *out, size_t out_len)
 {
     unsigned ii;
@@ -70,16 +70,16 @@ int wsock_base64_decode (const char *in, size_t in_len,
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
     for (io = 0, ii = 0, v = 0, rem = 0; ii < in_len; ii++) {
-        if (isspace (in [ii]))
+        if(isspace(in[ii]))
             continue;
         
-        if (in [ii] == '=')
+        if(in [ii] == '=')
             break;
         
-        ch = DECODEMAP [(int)(in [ii])];
+        ch = DECODEMAP[(int)(in[ii])];
         
         /*  Discard invalid characters as per RFC 2045. */
-        if (ch == 0xFF)
+        if(ch == 0xFF)
             break; 
         
         v = (v << 6) | ch;
@@ -87,21 +87,21 @@ int wsock_base64_decode (const char *in, size_t in_len,
 
         if (rem >= 8) {
             rem -= 8;
-            if (io >= out_len)
+            if(io >= out_len)
                 return -1;
-            out [io++] = (v >> rem) & 255;
+            out[io++] = (v >> rem) & 255;
         }
     }
-    if (rem >= 8) {
+    if(rem >= 8) {
         rem -= 8;
-        if (io >= out_len)
+        if(io >= out_len)
             return -1;
-        out [io++] = (v >> rem) & 255;
+        out[io++] = (v >> rem) & 255;
     }
     return io;
 }
 
-int wsock_base64_encode (const uint8_t *in, size_t in_len,
+int wsock_base64_encode(const uint8_t *in, size_t in_len,
     char *out, size_t out_len)
 {
     unsigned ii;
@@ -115,36 +115,36 @@ int wsock_base64_encode (const uint8_t *in, size_t in_len,
         "abcdefghijklmnopqrstuvwxyz"
         "0123456789+/";
 
-    for (io = 0, ii = 0, v = 0, rem = 0; ii < in_len; ii++) {
-        ch = in [ii];
+    for(io = 0, ii = 0, v = 0, rem = 0; ii < in_len; ii++) {
+        ch = in[ii];
         v = (v << 8) | ch;
         rem += 8;
-        while (rem >= 6) {
+        while(rem >= 6) {
             rem -= 6;
-            if (io >= out_len)
+            if(io >= out_len)
                 return -1;
-            out [io++] = ENCODEMAP [(v >> rem) & 63];
+            out[io++] = ENCODEMAP[(v >> rem) & 63];
         }
     }
 
-    if (rem) {
+    if(rem) {
         v <<= (6 - rem);
-        if (io >= out_len)
+        if(io >= out_len)
             return -1;
-        out [io++] = ENCODEMAP [v & 63];
+        out[io++] = ENCODEMAP[v & 63];
     }
 
     /*  Pad to a multiple of 3. */
-    while (io & 3) {
-        if (io >= out_len)
+    while(io & 3) {
+        if(io >= out_len)
             return -1;
-        out [io++] = '=';
+        out[io++] = '=';
     }
 
-    if (io >= out_len)
+    if(io >= out_len)
         return -1;
     
-    out [io] = '\0';
+    out[io] = '\0';
 
     return io;
 }
