@@ -33,10 +33,21 @@
 
 #include "base64.h"
 #include "sha1.h"
+#include "wire.h"
 #include "wsock.h"
+
+/* 0 on connection socket, 1 on listening socket. */
+#define WSOCK_LISTENING 1
+/* 0 on server, 1 on client. */
+#define WSOCK_CLIENT 2
+/* TCP connection broken or deadline occured while sending or receiving a
+   message. In such case the message is half-processed. There's no way to
+   continue or even do the final handshake. */
+#define WSOCK_BROKEN 4
 
 struct wsock {
     tcpsock u;
+    int flags;
 };
 
 /* Gets one CRLF-delimited line from the socket. Trims all leading and trailing
@@ -80,22 +91,19 @@ static int wsockgetline(wsock s, char *buf, size_t len, int64_t deadline) {
 
 wsock wsocklisten(ipaddr addr, int backlog) {
     struct wsock *s = (struct wsock*)malloc(sizeof(struct wsock));
-    if(!s) {
-        errno = ENOMEM;
-        return NULL;
-    }
+    if(!s) {errno = ENOMEM; return NULL;}
+    s->flags = WSOCK_LISTENING;
     s->u = tcplisten(addr, backlog);
-    if(!s->u) {
-        free(s);
-        return NULL;
-    }
+    if(!s->u) {free(s); return NULL;}
     return s;
 }
 
 wsock wsockaccept(wsock s, int64_t deadline) {
     int err = 0;
+    if(!(s->flags & WSOCK_LISTENING)) {err = EOPNOTSUPP; goto err0;}
     struct wsock *as = (struct wsock*)malloc(sizeof(struct wsock));
     if(!as) {err = ENOMEM; goto err0;}
+    as->flags = 0;
     as->u = tcpaccept(s->u, deadline);
     if(errno != 0) {err = errno; goto err1;}
 
@@ -196,6 +204,7 @@ wsock wsockconnect(ipaddr addr, const char *url, int64_t deadline) {
     int err = 0;
     struct wsock *s = (struct wsock*)malloc(sizeof(struct wsock));
     if(!s) {err = ENOMEM; goto err0;}
+    s->flags = WSOCK_CLIENT;
     s->u = tcpconnect(addr, deadline);
     if(errno != 0) {err = errno; goto err1;}
 
@@ -295,12 +304,75 @@ const char *wsockurl(wsock s) {
     assert(0);
 }
 
-size_t wsocksend(wsock s, const void *msg, size_t len) {
-    assert(0);
+size_t wsocksend(wsock s, const void *msg, size_t len, int64_t deadline) {
+    if(s->flags & WSOCK_LISTENING) {errno = EOPNOTSUPP; return 0;}
+    if(s->flags & WSOCK_BROKEN) {errno = ECONNABORTED; return 0;}
+    uint8_t buf[12];
+    size_t sz;
+    buf[0] = 0x82;
+    if(len > 0xffff) {
+        buf[1] = 127;
+        wsock_putll(buf + 2, len);
+        sz = 10;
+    }
+    else if(len > 125) {
+        buf[1] = 126;
+        wsock_puts(buf + 2, len);
+        sz = 4;
+    }
+    else {
+        buf[1] = (uint8_t)len;
+    }
+    if(s->flags & WSOCK_CLIENT) {
+        buf[1] &= 0x80;
+        /* TODO: Random number. */
+        wsock_putl(buf + sz, 0x01020304);
+        sz += 4;
+    }
+    tcpsend(s->u, buf, sz, deadline);
+    if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+    /* TODO: Mask as needed. */
+    size_t sent = tcpsend(s->u, msg, len, deadline);
+    if(errno != 0) {s->flags &= WSOCK_BROKEN; return sent;}
+    return len;
 }
 
-size_t wsockrecv(wsock s, void *msg, size_t len) {
-    assert(0);
+size_t wsockrecv(wsock s, void *msg, size_t len, int64_t deadline) {
+    if(s->flags & WSOCK_LISTENING) {errno = EOPNOTSUPP; return 0;}
+    if(s->flags & WSOCK_BROKEN) {errno = ECONNABORTED; return 0;}
+    while(1) {
+        uint8_t hdr1[2];
+        tcprecv(s->u, hdr1, 2, deadline);
+        if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+        if(hdr1[0] & 0x70) {s->flags &= WSOCK_BROKEN; errno = EPROTO; return 0;}
+        int opcode = hdr1[0] & 0x0f;
+        if(!(hdr1[1] & 0x80) ^ !(s->flags & WSOCK_CLIENT)) {
+            s->flags &= WSOCK_BROKEN; errno = EPROTO; return 0;}
+        size_t sz = hdr1[1] & 0x70;
+        if(sz == 126) {
+            uint8_t hdr2[2];
+            tcprecv(s->u, hdr2, 2, deadline);
+            if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+            sz = wsock_gets(hdr2);
+        }
+        else if(sz == 127) {
+            uint8_t hdr2[8];
+            tcprecv(s->u, hdr2, 8, deadline);
+            if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+            sz = wsock_getll(hdr2);
+        }
+        uint8_t mask[4];
+        if(!(s->flags & WSOCK_CLIENT)) {
+            tcprecv(s->u, mask, 4, deadline);
+            if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+        }
+
+
+
+
+        if(hdr1[0] & 0x80)
+            break;
+    }
 }
 
 void wsockclose(wsock s) {

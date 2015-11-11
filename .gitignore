@@ -21,3 +21,8 @@ libtool
 *.lo
 *.o
 wsock.pc
+test-suite.log
+tests/.dirstamp
+tests/e2e
+tests/*.log
+tests/*.trs

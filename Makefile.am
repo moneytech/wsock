@@ -36,6 +36,8 @@ libwsock_la_SOURCES = \
     base64.c \
     sha1.h \
     sha1.c \
+    wire.h \
+    wire.c \
     wsock.h \
     wsock.c
 
