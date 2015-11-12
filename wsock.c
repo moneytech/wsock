@@ -322,33 +322,53 @@ size_t wsocksend(wsock s, const void *msg, size_t len, int64_t deadline) {
     }
     else {
         buf[1] = (uint8_t)len;
+        sz = 2;
     }
+    /* TODO: Random number. */
+    uint8_t mask[4] = {1, 2, 3, 4};
     if(s->flags & WSOCK_CLIENT) {
-        buf[1] &= 0x80;
-        /* TODO: Random number. */
-        wsock_putl(buf + sz, 0x01020304);
+        buf[1] |= 0x80;    
+        memcpy(buf + sz, mask, 4);
         sz += 4;
     }
     tcpsend(s->u, buf, sz, deadline);
     if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
-    /* TODO: Mask as needed. */
-    size_t sent = tcpsend(s->u, msg, len, deadline);
-    if(errno != 0) {s->flags &= WSOCK_BROKEN; return sent;}
+    if(s->flags & WSOCK_CLIENT) {
+        /* TODO: Use static buffer or something. This way of implementing
+           mapping is performance nightmare. */
+        uint8_t *masked = malloc(len);
+        if(!masked) {s->flags &= WSOCK_BROKEN; errno = ENOMEM; return 0;}
+        size_t i;
+        for(i = 0; i != len; ++i)
+            masked[i] = ((uint8_t*)msg)[i] ^ mask[i % 4];
+        tcpsend(s->u, masked, len, deadline);
+        int err = errno;
+        free(masked);
+        errno = err;
+    }
+    else {
+        tcpsend(s->u, msg, len, deadline);
+    }
+    if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+    tcpflush(s->u, deadline);
+    if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
     return len;
 }
 
 size_t wsockrecv(wsock s, void *msg, size_t len, int64_t deadline) {
     if(s->flags & WSOCK_LISTENING) {errno = EOPNOTSUPP; return 0;}
     if(s->flags & WSOCK_BROKEN) {errno = ECONNABORTED; return 0;}
+    size_t res = 0;
     while(1) {
         uint8_t hdr1[2];
         tcprecv(s->u, hdr1, 2, deadline);
         if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
-        if(hdr1[0] & 0x70) {s->flags &= WSOCK_BROKEN; errno = EPROTO; return 0;}
-        int opcode = hdr1[0] & 0x0f;
-        if(!(hdr1[1] & 0x80) ^ !(s->flags & WSOCK_CLIENT)) {
+        if(hdr1[0] & 0x70) {
             s->flags &= WSOCK_BROKEN; errno = EPROTO; return 0;}
-        size_t sz = hdr1[1] & 0x70;
+        int opcode = hdr1[0] & 0x0f;
+        if(!!(s->flags & WSOCK_CLIENT) ^ !(hdr1[1] & 0x80)) {
+            s->flags &= WSOCK_BROKEN; errno = EPROTO; return 0;}
+        size_t sz = hdr1[1] & 0x7f;
         if(sz == 126) {
             uint8_t hdr2[2];
             tcprecv(s->u, hdr2, 2, deadline);
@@ -366,13 +386,27 @@ size_t wsockrecv(wsock s, void *msg, size_t len, int64_t deadline) {
             tcprecv(s->u, mask, 4, deadline);
             if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
         }
-
-
-
-
+        size_t toread = sz < len ? sz : len;
+        if(toread > 0) {
+            tcprecv(s->u, msg, toread, deadline);
+            if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+        }
+        if(!(s->flags & WSOCK_CLIENT)) {
+            size_t i;
+            for(i = 0; i != toread; ++i)
+                ((uint8_t*)msg)[i] ^= mask[i % 4];
+        }
+        if(sz > toread) {
+            tcprecv(s->u, NULL, sz - toread, deadline);
+            if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+        }
+        res += sz;
         if(hdr1[0] & 0x80)
             break;
+        msg = ((uint8_t*)msg) + sz;
+        len -= sz;
     }
+    return res;
 }
 
 void wsockclose(wsock s) {
