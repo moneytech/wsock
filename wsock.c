@@ -29,9 +29,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 
 #include "base64.h"
+#include "random.h"
 #include "sha1.h"
 #include "wire.h"
 #include "wsock.h"
@@ -107,7 +107,7 @@ wsock wsockaccept(wsock s, int64_t deadline) {
     as->u = tcpaccept(s->u, deadline);
     if(errno != 0) {err = errno; goto err1;}
 
-    // Parse request.
+    /* Parse request. */
     char buf[256];
     size_t sz = wsockgetline(as, buf, sizeof(buf), deadline);
     if(sz < 0) {err = errno; goto err2;}
@@ -220,14 +220,10 @@ wsock wsockconnect(ipaddr addr, const char *url, int64_t deadline) {
         "Sec-WebSocket-Key: ";
     tcpsend(s->u, lit1, strlen(lit1), deadline);
     if(errno != 0) {err = errno; goto err2;}
-    /* TODO: Set the seed once only? */
-    struct timeval tv;
-    if(gettimeofday(&tv, NULL) == -1) {err = errno; goto err2;}
-    srandom((int)tv.tv_usec);
     uint8_t nonce[16];
     int i;
     for(i = 0; i != 16; ++i)
-        nonce[i] = random() % 256;
+        nonce[i] = wsock_random() % 256;
     char swsk[32];
     int swsk_len = wsock_base64_encode(nonce, 16, swsk, sizeof(swsk));
     assert(swsk_len > 0);
@@ -324,10 +320,11 @@ size_t wsocksend(wsock s, const void *msg, size_t len, int64_t deadline) {
         buf[1] = (uint8_t)len;
         sz = 2;
     }
-    /* TODO: Random number. */
-    uint8_t mask[4] = {1, 2, 3, 4};
+    uint8_t mask[4];
     if(s->flags & WSOCK_CLIENT) {
-        buf[1] |= 0x80;    
+        ((uint16_t*)mask)[0] = (uint16_t)wsock_random();
+        ((uint16_t*)mask)[1] = (uint16_t)wsock_random();
+        buf[1] |= 0x80;
         memcpy(buf + sz, mask, 4);
         sz += 4;
     }

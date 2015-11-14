@@ -34,6 +34,8 @@ lib_LTLIBRARIES = libwsock.la
 libwsock_la_SOURCES = \
     base64.h \
     base64.c \
+    random.h \
+    random.c \
     sha1.h \
     sha1.c \
     wire.h \
