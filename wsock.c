@@ -33,6 +33,7 @@
 #include "base64.h"
 #include "random.h"
 #include "sha1.h"
+#include "str.h"
 #include "wire.h"
 #include "wsock.h"
 
@@ -48,6 +49,8 @@
 struct wsock {
     tcpsock u;
     int flags;
+    struct wsock_str url;
+    struct wsock_str subprotocol;
 };
 
 /* Gets one CRLF-delimited line from the socket. Trims all leading and trailing
@@ -95,6 +98,8 @@ wsock wsocklisten(ipaddr addr, int backlog) {
     s->flags = WSOCK_LISTENING;
     s->u = tcplisten(addr, backlog);
     if(!s->u) {free(s); return NULL;}
+    wsock_str_init(&s->url, "", 0);
+    wsock_str_init(&s->subprotocol, "", 0);
     return s;
 }
 
@@ -106,6 +111,8 @@ wsock wsockaccept(wsock s, int64_t deadline) {
     as->flags = 0;
     as->u = tcpaccept(s->u, deadline);
     if(errno != 0) {err = errno; goto err1;}
+    wsock_str_init(&as->url, "", 0);
+    wsock_str_init(&as->subprotocol, "", 0);
 
     /* Parse request. */
     char buf[256];
@@ -119,7 +126,7 @@ wsock wsockaccept(wsock s, int64_t deadline) {
     wstart = wend + 1;
     wend = (char*)memchr(wstart, ' ', lend - wstart);
     if(!wend) {err = EPROTO; goto err2;}
-    /* TODO: Store the URL. */
+    wsock_str_init(&as->url, wstart, wend - wstart);
     wstart = wend + 1;
     wend = (char*)memchr(wstart, ' ', lend - wstart);
     if(wend || lend - wstart != 8 || memcmp(wstart, "HTTP/1.1", 8) != 0) {
@@ -207,6 +214,8 @@ wsock wsockconnect(ipaddr addr, const char *url, int64_t deadline) {
     s->flags = WSOCK_CLIENT;
     s->u = tcpconnect(addr, deadline);
     if(errno != 0) {err = errno; goto err1;}
+    wsock_str_init(&s->url, url, strlen(url));
+    wsock_str_init(&s->subprotocol, "", 0);
 
     /* Send request. */
     tcpsend(s->u, "GET ", 4, deadline);
@@ -222,8 +231,8 @@ wsock wsockconnect(ipaddr addr, const char *url, int64_t deadline) {
     if(errno != 0) {err = errno; goto err2;}
     uint8_t nonce[16];
     int i;
-    for(i = 0; i != 16; ++i)
-        nonce[i] = wsock_random() % 256;
+    for(i = 0; i != 8; ++i)
+        ((uint16_t*)  nonce)[i] = wsock_random() & 0xffff;
     char swsk[32];
     int swsk_len = wsock_base64_encode(nonce, 16, swsk, sizeof(swsk));
     assert(swsk_len > 0);
@@ -285,6 +294,8 @@ wsock wsockconnect(ipaddr addr, const char *url, int64_t deadline) {
     }
     if(!hasupgrade || !hasconnection || !haskey) {err = EPROTO; goto err2;}
 
+    wsock_str_init(&s->url, "", 0);
+    wsock_str_init(&s->subprotocol, "", 0);
     return s;
 
 err2:
@@ -297,7 +308,11 @@ err0:
 }
 
 const char *wsockurl(wsock s) {
-    assert(0);
+    return wsock_str_get(&s->url);
+}
+
+const char *wsocksubprotocol(wsock s) {
+    return wsock_str_get(&s->subprotocol);
 }
 
 size_t wsocksend(wsock s, const void *msg, size_t len, int64_t deadline) {
@@ -410,6 +425,8 @@ void wsockclose(wsock s) {
     /* TODO: Closing handshake. */
     assert(s->u);
     tcpclose(s->u);
+    wsock_str_term(&s->url);
+    wsock_str_term(&s->subprotocol);
     free(s);
 }
 

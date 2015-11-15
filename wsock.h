@@ -80,6 +80,7 @@ WSOCK_EXPORT wsock wsocklisten(ipaddr addr, int backlog);
 WSOCK_EXPORT wsock wsockaccept(wsock s, int64_t deadline);
 WSOCK_EXPORT wsock wsockconnect(ipaddr addr, const char *url, int64_t deadline);
 WSOCK_EXPORT const char *wsockurl(wsock s);
+WSOCK_EXPORT const char *wsocksubprotocol(wsock s);
 WSOCK_EXPORT size_t wsocksend(wsock s, const void *msg, size_t len,
     int64_t deadline);
 WSOCK_EXPORT size_t wsockrecv(wsock s, void *msg, size_t len,

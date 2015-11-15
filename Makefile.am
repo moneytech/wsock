@@ -38,6 +38,8 @@ libwsock_la_SOURCES = \
     random.c \
     sha1.h \
     sha1.c \
+    str.h \
+    str.c \
     wire.h \
     wire.c \
     wsock.h \

@@ -26,6 +26,7 @@ int main() {
     go(client());
     wsock s = wsockaccept(ls, -1);
     assert(s);
+    assert(strcmp(wsockurl(s), "/a/b/c") == 0);
     size_t sz = wsocksend(s, "ABC", 3, -1);
     assert(errno == 0);
     assert(sz == 3);
