@@ -471,7 +471,17 @@ size_t wsockrecv(wsock s, void *msg, size_t len, int64_t deadline) {
         if(hdr1[0] & 0x70) {
             s->flags &= WSOCK_BROKEN; errno = EPROTO; return 0;}
         int opcode = hdr1[0] & 0x0f;
+        if(opcode == 8) {
+            if(!(s->flags & WSOCK_DONE)) {
+                tcpsend(s->u, "\x88\x00", 2, deadline);
+                tcpflush(s->u, deadline);
+                s->flags |= (WSOCK_BROKEN & WSOCK_DONE);
+            }
+            errno = ECONNRESET;
+            return 0;
+        }
         if(opcode == 9) {
+            /* TODO: Account for pings and pongs with payload. */
             if(!(s->flags & WSOCK_DONE)) {
                 tcpsend(s->u, "\x8A\x00", 2, deadline);
                 if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
@@ -480,13 +490,10 @@ size_t wsockrecv(wsock s, void *msg, size_t len, int64_t deadline) {
             }
             continue;
         }
-        if(opcode == 8) {
-            if(!(s->flags & WSOCK_DONE)) {
-                tcpsend(s->u, "\x88\x00", 2, deadline);
-                tcpflush(s->u, deadline);
-                s->flags |= (WSOCK_BROKEN & WSOCK_DONE);
-            }
-            errno = ECONNRESET;
+        if(opcode == 10) {
+            /* TODO: Account for pings and pongs with payload. */
+            /* TODO: Do we want to make exiting the function here optional? */
+            errno = EAGAIN;
             return 0;
         }
         if(!!(s->flags & WSOCK_CLIENT) ^ !(hdr1[1] & 0x80)) {
@@ -530,6 +537,16 @@ size_t wsockrecv(wsock s, void *msg, size_t len, int64_t deadline) {
         len -= sz;
     }
     return res;
+}
+
+void wsockping(wsock s, int64_t deadline) {
+    if(s->flags & WSOCK_LISTENING) {errno = EOPNOTSUPP; return;}
+    if(s->flags & (WSOCK_BROKEN | WSOCK_DONE)) {errno = ECONNABORTED; return;}
+    tcpsend(s->u, "\x89\x00", 2, deadline);
+    if(errno != 0) {s->flags |= WSOCK_BROKEN;}
+    tcpflush(s->u, deadline);
+    if(errno != 0) {s->flags |= WSOCK_BROKEN;}
+    errno = 0;
 }
 
 void wsockdone(wsock s, int64_t deadline) {
