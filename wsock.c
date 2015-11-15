@@ -45,6 +45,8 @@
    message. In such case the message is half-processed. There's no way to
    continue or even do the final handshake. */
 #define WSOCK_BROKEN 4
+/* Set if wsockdone() was already called. */
+#define WSOCK_DONE 8
 
 struct wsock {
     tcpsock u;
@@ -435,12 +437,12 @@ size_t wsocksend(wsock s, const void *msg, size_t len, int64_t deadline) {
         sz += 4;
     }
     tcpsend(s->u, buf, sz, deadline);
-    if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+    if(errno != 0) {s->flags |= WSOCK_BROKEN; return 0;}
     if(s->flags & WSOCK_CLIENT) {
         /* TODO: Use static buffer or something. This way of implementing
            mapping is performance nightmare. */
         uint8_t *masked = malloc(len);
-        if(!masked) {s->flags &= WSOCK_BROKEN; errno = ENOMEM; return 0;}
+        if(!masked) {s->flags |= WSOCK_BROKEN; errno = ENOMEM; return 0;}
         size_t i;
         for(i = 0; i != len; ++i)
             masked[i] = ((uint8_t*)msg)[i] ^ mask[i % 4];
@@ -452,9 +454,9 @@ size_t wsocksend(wsock s, const void *msg, size_t len, int64_t deadline) {
     else {
         tcpsend(s->u, msg, len, deadline);
     }
-    if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+    if(errno != 0) {s->flags |= WSOCK_BROKEN; return 0;}
     tcpflush(s->u, deadline);
-    if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+    if(errno != 0) {s->flags |= WSOCK_BROKEN; return 0;}
     return len;
 }
 
@@ -465,34 +467,43 @@ size_t wsockrecv(wsock s, void *msg, size_t len, int64_t deadline) {
     while(1) {
         uint8_t hdr1[2];
         tcprecv(s->u, hdr1, 2, deadline);
-        if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+        if(errno != 0) {s->flags |= WSOCK_BROKEN; return 0;}
         if(hdr1[0] & 0x70) {
             s->flags &= WSOCK_BROKEN; errno = EPROTO; return 0;}
         int opcode = hdr1[0] & 0x0f;
+        if(opcode == 8) {
+            if(!(s->flags & WSOCK_DONE)) {
+                tcpsend(s->u, "\x88\x00", 2, deadline);
+                tcpflush(s->u, deadline);
+                s->flags |= (WSOCK_BROKEN & WSOCK_DONE);
+            }
+            errno = ECONNRESET;
+            return 0;
+        }
         if(!!(s->flags & WSOCK_CLIENT) ^ !(hdr1[1] & 0x80)) {
             s->flags &= WSOCK_BROKEN; errno = EPROTO; return 0;}
         size_t sz = hdr1[1] & 0x7f;
         if(sz == 126) {
             uint8_t hdr2[2];
             tcprecv(s->u, hdr2, 2, deadline);
-            if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+            if(errno != 0) {s->flags |= WSOCK_BROKEN; return 0;}
             sz = wsock_gets(hdr2);
         }
         else if(sz == 127) {
             uint8_t hdr2[8];
             tcprecv(s->u, hdr2, 8, deadline);
-            if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+            if(errno != 0) {s->flags |= WSOCK_BROKEN; return 0;}
             sz = wsock_getll(hdr2);
         }
         uint8_t mask[4];
         if(!(s->flags & WSOCK_CLIENT)) {
             tcprecv(s->u, mask, 4, deadline);
-            if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+            if(errno != 0) {s->flags |= WSOCK_BROKEN; return 0;}
         }
         size_t toread = sz < len ? sz : len;
         if(toread > 0) {
             tcprecv(s->u, msg, toread, deadline);
-            if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+            if(errno != 0) {s->flags |= WSOCK_BROKEN; return 0;}
         }
         if(!(s->flags & WSOCK_CLIENT)) {
             size_t i;
@@ -501,7 +512,7 @@ size_t wsockrecv(wsock s, void *msg, size_t len, int64_t deadline) {
         }
         if(sz > toread) {
             tcprecv(s->u, NULL, sz - toread, deadline);
-            if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+            if(errno != 0) {s->flags |= WSOCK_BROKEN; return 0;}
         }
         res += sz;
         if(hdr1[0] & 0x80)
@@ -512,8 +523,21 @@ size_t wsockrecv(wsock s, void *msg, size_t len, int64_t deadline) {
     return res;
 }
 
+void wsockdone(wsock s, int64_t deadline) {
+    if(s->flags & WSOCK_LISTENING) {errno = EOPNOTSUPP; return;}
+    if(s->flags & WSOCK_BROKEN) {errno = ECONNABORTED; return;}
+    if(!(s->flags & WSOCK_DONE)) {
+        if(s->flags & WSOCK_DONE) {errno = EPROTO; return;}
+        tcpsend(s->u, "\x88\x00", 2, deadline);
+        if(errno != 0) {s->flags |= WSOCK_BROKEN;}
+        tcpflush(s->u, deadline);
+        if(errno != 0) {s->flags |= WSOCK_BROKEN;}
+        s->flags |= WSOCK_DONE;
+    }
+    errno = 0;
+}
+
 void wsockclose(wsock s) {
-    /* TODO: Closing handshake. */
     assert(s->u);
     tcpclose(s->u);
     wsock_str_term(&s->url);

@@ -18,6 +18,8 @@ coroutine void client() {
     sz = wsocksend(s, "DEF", 3, -1);
     assert(errno == 0);
     assert(sz == 3);
+    wsockdone(s, -1);
+    assert(errno == 0);
     wsockclose(s);
 }
 
@@ -37,6 +39,8 @@ int main() {
     assert(errno == 0);
     assert(sz == 3);
     assert(memcmp(buf, "DEF", 3) == 0);
+    sz = wsockrecv(s, buf, sizeof(buf), -1);
+    assert(errno == ECONNRESET);
     wsockclose(s);
     wsockclose(ls);
     return 0;
