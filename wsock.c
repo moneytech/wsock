@@ -471,6 +471,15 @@ size_t wsockrecv(wsock s, void *msg, size_t len, int64_t deadline) {
         if(hdr1[0] & 0x70) {
             s->flags &= WSOCK_BROKEN; errno = EPROTO; return 0;}
         int opcode = hdr1[0] & 0x0f;
+        if(opcode == 9) {
+            if(!(s->flags & WSOCK_DONE)) {
+                tcpsend(s->u, "\x8A\x00", 2, deadline);
+                if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+                tcpflush(s->u, deadline);
+                if(errno != 0) {s->flags &= WSOCK_BROKEN; return 0;}
+            }
+            continue;
+        }
         if(opcode == 8) {
             if(!(s->flags & WSOCK_DONE)) {
                 tcpsend(s->u, "\x88\x00", 2, deadline);
