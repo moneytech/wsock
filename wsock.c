@@ -55,7 +55,7 @@ struct wsock {
 
 /* Gets one CRLF-delimited line from the socket. Trims all leading and trailing
    whitesepace. Replaces any remaining whitespace sequences by single space. */
-static int wsockgetline(wsock s, char *buf, size_t len, int64_t deadline) {
+static int wsock_getline(wsock s, char *buf, size_t len, int64_t deadline) {
     size_t sz = tcprecvuntil(s->u, buf, len, "\r", 1, deadline);
     if(errno != 0)
         return -1;
@@ -92,14 +92,61 @@ static int wsockgetline(wsock s, char *buf, size_t len, int64_t deadline) {
     return pos;
 }
 
-wsock wsocklisten(ipaddr addr, int backlog) {
+static const char *wsock_hassubprotocol(const char *available,
+      const char *requested, size_t rqsz, size_t *ressz) {
+    /* This algorithm has quadratic complexity but we assume the list of
+       subprotocols is short, so we don't care. */
+    /* Walk through all requested subprotocols. */
+    while(rqsz) {
+        size_t rsz = 0;
+        while(rqsz && requested[rsz] != ',')
+            ++rsz, --rqsz;
+        if(rqsz)
+            --rqsz;
+        /* Walk through all the available subprotocols. */
+        const char *av = available;
+        while(av[0]) {
+            size_t asz = 0;
+            while(av[asz] != 0 && av[asz] != ',')
+                ++asz;
+            if(rsz == asz && memcmp(requested, av, asz) == 0) {
+                if(ressz)
+                    *ressz = asz;
+                return av;
+            }
+            av += asz + 1;
+        }
+        requested += rsz + 1;
+    }
+    return NULL;
+}
+
+static int wsock_checkstring(const char *s) {
+    if(!s) {errno = EINVAL; return 0;}
+    int i = 0;
+    while(s[i]) {
+        if(s[i] < 32 || s[i] > 127) {errno = EINVAL; return 0;}
+        ++i;
+    }
+    if(i == 0) {errno = EINVAL; return 0;}
+    errno = 0;
+    return 1;
+}
+
+wsock wsocklisten(ipaddr addr, const char *subprotocol, int backlog) {
+    /* Check the arguments. */
+    if(!wsock_checkstring(subprotocol))
+        return NULL;
+
     struct wsock *s = (struct wsock*)malloc(sizeof(struct wsock));
     if(!s) {errno = ENOMEM; return NULL;}
     s->flags = WSOCK_LISTENING;
     s->u = tcplisten(addr, backlog);
     if(!s->u) {free(s); return NULL;}
     wsock_str_init(&s->url, "", 0);
-    wsock_str_init(&s->subprotocol, "", 0);
+    wsock_str_init(&s->subprotocol,
+        subprotocol ? subprotocol : "",
+        subprotocol ? strlen(subprotocol) : 0);
     return s;
 }
 
@@ -116,7 +163,7 @@ wsock wsockaccept(wsock s, int64_t deadline) {
 
     /* Parse request. */
     char buf[256];
-    size_t sz = wsockgetline(as, buf, sizeof(buf), deadline);
+    size_t sz = wsock_getline(as, buf, sizeof(buf), deadline);
     if(sz < 0) {err = errno; goto err2;}
     char *lend = buf + sz;
     char *wstart = buf;
@@ -134,9 +181,12 @@ wsock wsockaccept(wsock s, int64_t deadline) {
     int hasupgrade = 0;
     int hasconnection = 0;
     int haskey = 0;
+    int hassubprotocol = 0;
+    const char *subprotocol = NULL;
+    size_t subprotocolsz = 0;
     struct wsock_sha1 sha1;
     while(1) {
-        sz = wsockgetline(as, buf, sizeof(buf), deadline);
+        sz = wsock_getline(as, buf, sizeof(buf), deadline);
         if(sz < 0) {err = errno; goto err2;}
         if(sz == 0)
             break;
@@ -174,6 +224,15 @@ wsock wsockaccept(wsock s, int64_t deadline) {
             haskey = 1;
             continue;
         }
+        if(nsz == 22 && memcmp(nstart, "Sec-WebSocket-Protocol", 22) == 0) {
+            if(hassubprotocol) {err = EPROTO; goto err2;}
+            subprotocol = wsock_hassubprotocol(wsock_str_get(&s->subprotocol),
+                  vstart, vsz, &subprotocolsz);
+            if(!subprotocol) {err = EPROTO; goto err2;}
+            hassubprotocol = 1;
+            wsock_str_init(&as->subprotocol, subprotocol, subprotocolsz);
+            continue;
+        }
     }
     if(!hasupgrade || !hasconnection || !haskey) {err = EPROTO; goto err2;}
 
@@ -191,6 +250,12 @@ wsock wsockaccept(wsock s, int64_t deadline) {
     assert(sz > 0);
     tcpsend(as->u, key, sz, deadline);
     if(errno != 0) {err = errno; goto err2;}
+    if(hassubprotocol) {
+        tcpsend(as->u, "\r\nSec-WebSocket-Protocol: ", 26, deadline);
+        if(errno != 0) {err = errno; goto err2;}
+        tcpsend(as->u, subprotocol, subprotocolsz, deadline);
+        if(errno != 0) {err = errno; goto err2;}
+    }
     tcpsend(as->u, "\r\n\r\n", 4, deadline);
     if(errno != 0) {err = errno; goto err2;}
     tcpflush(as->u, deadline);
@@ -207,7 +272,17 @@ err0:
     return NULL;
 }
 
-wsock wsockconnect(ipaddr addr, const char *url, int64_t deadline) {
+wsock wsockconnect(ipaddr addr, const char *subprotocol, const char *url,
+      int64_t deadline) {
+    /* Check the arguments. */
+    if(!wsock_checkstring(url))
+        return NULL;
+    if(subprotocol) {
+        if(!wsock_checkstring(subprotocol))
+        return NULL;
+    }
+
+    /* Open TCP connection. */
     int err = 0;
     struct wsock *s = (struct wsock*)malloc(sizeof(struct wsock));
     if(!s) {err = ENOMEM; goto err0;}
@@ -238,6 +313,12 @@ wsock wsockconnect(ipaddr addr, const char *url, int64_t deadline) {
     assert(swsk_len > 0);
     tcpsend(s->u, swsk, swsk_len, deadline);
     if(errno != 0) {err = errno; goto err2;}
+    if(subprotocol) {
+        tcpsend(s->u, "\r\nSec-WebSocket-Protocol: ", 26, deadline);
+        if(errno != 0) {err = errno; goto err2;}
+        tcpsend(s->u, subprotocol, strlen(subprotocol), deadline);
+        if(errno != 0) {err = errno; goto err2;}
+    }
     tcpsend(s->u, "\r\n\r\n", 4, deadline);
     if(errno != 0) {err = errno; goto err2;}
     tcpflush(s->u, deadline);
@@ -245,7 +326,7 @@ wsock wsockconnect(ipaddr addr, const char *url, int64_t deadline) {
 
     /* Parse reply. */
     char buf[256];
-    size_t sz = wsockgetline(s, buf, sizeof(buf), deadline);
+    size_t sz = wsock_getline(s, buf, sizeof(buf), deadline);
     if(sz < 0) {err = errno; goto err2;}
     char *lend = buf + sz;
     char *wstart = buf;
@@ -259,8 +340,9 @@ wsock wsockconnect(ipaddr addr, const char *url, int64_t deadline) {
     int hasupgrade = 0;
     int hasconnection = 0;
     int haskey = 0;
+    int hassubprotocol = 0;
     while(1) {
-        sz = wsockgetline(s, buf, sizeof(buf), deadline);
+        sz = wsock_getline(s, buf, sizeof(buf), deadline);
         if(sz < 0) {err = errno; goto err2;}
         if(sz == 0)
             break;
@@ -287,15 +369,24 @@ wsock wsockconnect(ipaddr addr, const char *url, int64_t deadline) {
             continue;
         }
         if(nsz == 20 && memcmp(nstart, "Sec-WebSocket-Accept", 20) == 0) {
+            if(haskey) {err = EPROTO; goto err2;}
             /* TODO */
             haskey = 1;
+            continue;
+        }
+        if(nsz == 22 && memcmp(nstart, "Sec-WebSocket-Protocol", 22) == 0) {
+            if(hassubprotocol) {err = EPROTO; goto err2;}
+            for(i = 0; i != vsz; ++i)
+                if(vstart[i] == ',') {err = EPROTO; goto err2;}
+            if(!wsock_hassubprotocol(subprotocol, vstart, vsz, NULL)) {
+                err = EPROTO; goto err2;}
+            wsock_str_init(&s->subprotocol, vstart, vsz);
+            hassubprotocol = 1;
             continue;
         }
     }
     if(!hasupgrade || !hasconnection || !haskey) {err = EPROTO; goto err2;}
 
-    wsock_str_init(&s->url, "", 0);
-    wsock_str_init(&s->subprotocol, "", 0);
     return s;
 
 err2:
