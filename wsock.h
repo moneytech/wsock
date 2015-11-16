@@ -88,6 +88,7 @@ WSOCK_EXPORT size_t wsocksend(wsock s, const void *msg, size_t len,
 WSOCK_EXPORT size_t wsockrecv(wsock s, void *msg, size_t len,
     int64_t deadline); 
 WSOCK_EXPORT void wsockping(wsock s, int64_t deadline);
+WSOCK_EXPORT void wsockpong(wsock s, int64_t deadline);
 WSOCK_EXPORT void wsockdone(wsock s, int64_t deadline);
 WSOCK_EXPORT void wsockclose(wsock s);
 

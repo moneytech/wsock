@@ -473,6 +473,7 @@ size_t wsockrecv(wsock s, void *msg, size_t len, int64_t deadline) {
         int opcode = hdr1[0] & 0x0f;
         if(opcode == 8) {
             if(!(s->flags & WSOCK_DONE)) {
+                /* TODO: Close frames from client should be masked. */
                 tcpsend(s->u, "\x88\x00", 2, deadline);
                 tcpflush(s->u, deadline);
                 s->flags |= (WSOCK_BROKEN & WSOCK_DONE);
@@ -543,6 +544,16 @@ void wsockping(wsock s, int64_t deadline) {
     if(s->flags & WSOCK_LISTENING) {errno = EOPNOTSUPP; return;}
     if(s->flags & (WSOCK_BROKEN | WSOCK_DONE)) {errno = ECONNABORTED; return;}
     tcpsend(s->u, "\x89\x00", 2, deadline);
+    if(errno != 0) {s->flags |= WSOCK_BROKEN;}
+    tcpflush(s->u, deadline);
+    if(errno != 0) {s->flags |= WSOCK_BROKEN;}
+    errno = 0;
+}
+
+void wsockpong(wsock s, int64_t deadline) {
+    if(s->flags & WSOCK_LISTENING) {errno = EOPNOTSUPP; return;}
+    if(s->flags & (WSOCK_BROKEN | WSOCK_DONE)) {errno = ECONNABORTED; return;}
+    tcpsend(s->u, "\x8A\x00", 2, deadline);
     if(errno != 0) {s->flags |= WSOCK_BROKEN;}
     tcpflush(s->u, deadline);
     if(errno != 0) {s->flags |= WSOCK_BROKEN;}

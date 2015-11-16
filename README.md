@@ -6,8 +6,10 @@ wsock is WebSocket library for [libmill](http://libmill.org)
 
 **wsock wsocklisten(ipaddr addr, const char *subprotocol, int backlog);**
 
-Start listening for connections from clients. Subprotocol may be NULL.
-It can also be a comma-separated list of protocols.
+Start listening for connections from clients. Subprotocol is a comma-delimited
+list of supported subprotocols. Incoming connections that don't match any of
+the listed subprotocols will be silently dropped. If it is set to NULL, all
+connections will be accepted.
 
 **wsock wsockaccept(wsock s, int64_t deadline);**
 
@@ -15,12 +17,15 @@ Accept new connection from a client.
 
 **wsock wsockconnect(ipaddr addr, const char *subprotocol, const char *url, int64_t deadline);**
 
-Connect to a server. Subprotocol may be NULL. It can also be a comma-separated
-list of protocols. Put preferred protocols before less preferred ones.
+Connect to a server. Subprotocol is a comma-delimited list of supported
+subprotocols. Put preferred protocols before less preferred ones. Server will
+choose one of the subprotocols -- to find out which one, use wsocksubprotocol()
+function. Setting subprotocol to NULL means that the server is free to choose
+any subprotocol.
 
 **const char *wsockurl(wsock s);**
 
-After accepting a connection, you can retrieve the URL requester by peer using
+After accepting a connection, you can retrieve the URL requested by peer using
 this function.
 
 **const char *wsocksubprotocol(wsock s);**
@@ -42,6 +47,11 @@ Receive a message from the peer.
 Send ping to the peer. Peer replies with pong, which will cause wsockrecv()
 to exit with errno set to EAGAIN.
 
+**void wsockpong(wsock s, int64_t deadline);**
+
+Send pong to the peer. It can be used to implement unsolicited one-way
+heartbeats.
+
 **void wsockdone(wsock s, int64_t deadline);**
 
 Start the closing handshake. After calling this function you can't send
@@ -51,3 +61,4 @@ peer.
 **void wsockclose(wsock s);**
 
 Close the connection without doing the closing handshake.
+
