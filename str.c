@@ -21,6 +21,7 @@
 */
 
 #include <assert.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -28,6 +29,11 @@
 
 void wsock_str_init(struct wsock_str *self, const char *s, size_t len) {
     assert(s[0] != 255);
+    if(!s) {
+        self->p.dummy = 255;
+        self->p.ptr = NULL;
+        return;
+    }
     if(len < 32) {
         memcpy(self->s, s, len);
         self->s[len] = 0;
@@ -47,5 +53,17 @@ void wsock_str_term(struct wsock_str *self) {
 
 const char *wsock_str_get(struct wsock_str *self) {
     return self->p.dummy == 255 ? self->p.ptr : self->s;
+}
+
+size_t wsock_str_len(const char *s) {
+    return s ? strlen(s) : 0;
+}
+
+int wsock_str_eq(const char *s1, const char *s2) {
+    if(!s1 && !s2)
+        return 1;
+    if(!s1 || !s2)
+        return 0;
+    return strcmp(s1, s2) ? 0 : 1;
 }
 

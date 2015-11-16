@@ -24,5 +24,7 @@ wsock.pc
 test-suite.log
 tests/.dirstamp
 tests/e2e
+tests/url
+tests/subprotocol
 tests/*.log
 tests/*.trs

@@ -23,11 +23,14 @@
 #ifndef WSOCK_STR_INCLUDED
 #define WSOCK_STR_INCLUDED
 
+#include <stddef.h>
+#include <stdint.h>
+
 struct wsock_str {
     union {
        char s[32];
        struct {
-           char dummy;
+           uint8_t dummy;
            char *ptr;
        } p;
     };
@@ -36,5 +39,8 @@ struct wsock_str {
 void wsock_str_init(struct wsock_str *self, const char *s, size_t len);
 void wsock_str_term(struct wsock_str *self);
 const char *wsock_str_get(struct wsock_str *self);
+
+size_t wsock_str_len(const char *s);
+int wsock_str_eq(const char *s1, const char *s2);
 
 #endif

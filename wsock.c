@@ -124,13 +124,14 @@ static const char *wsock_hassubprotocol(const char *available,
 }
 
 static int wsock_checkstring(const char *s) {
-    if(!s) {errno = EINVAL; return 0;}
-    int i = 0;
-    while(s[i]) {
-        if(s[i] < 32 || s[i] > 127) {errno = EINVAL; return 0;}
-        ++i;
+    if(s) {
+        int i = 0;
+        while(s[i]) {
+            if(s[i] < 32 || s[i] > 127) {errno = EINVAL; return 0;}
+            ++i;
+        }
+        if(i == 0) {errno = EINVAL; return 0;}
     }
-    if(i == 0) {errno = EINVAL; return 0;}
     errno = 0;
     return 1;
 }
@@ -145,10 +146,8 @@ wsock wsocklisten(ipaddr addr, const char *subprotocol, int backlog) {
     s->flags = WSOCK_LISTENING;
     s->u = tcplisten(addr, backlog);
     if(!s->u) {free(s); return NULL;}
-    wsock_str_init(&s->url, "", 0);
-    wsock_str_init(&s->subprotocol,
-        subprotocol ? subprotocol : "",
-        subprotocol ? strlen(subprotocol) : 0);
+    wsock_str_init(&s->url, NULL, 0);
+    wsock_str_init(&s->subprotocol, subprotocol, wsock_str_len(subprotocol));
     return s;
 }
 
@@ -160,8 +159,8 @@ wsock wsockaccept(wsock s, int64_t deadline) {
     as->flags = 0;
     as->u = tcpaccept(s->u, deadline);
     if(errno != 0) {err = errno; goto err1;}
-    wsock_str_init(&as->url, "", 0);
-    wsock_str_init(&as->subprotocol, "", 0);
+    wsock_str_init(&as->url, NULL, 0);
+    wsock_str_init(&as->subprotocol, NULL, 0);
 
     /* Parse request. */
     char buf[256];
@@ -227,6 +226,8 @@ wsock wsockaccept(wsock s, int64_t deadline) {
             continue;
         }
         if(nsz == 22 && memcmp(nstart, "Sec-WebSocket-Protocol", 22) == 0) {
+            /* TODO: RFC6455, section 11.3.4 allows for multiple instances of
+               this field. */
             if(hassubprotocol) {err = EPROTO; goto err2;}
             subprotocol = wsock_hassubprotocol(wsock_str_get(&s->subprotocol),
                   vstart, vsz, &subprotocolsz);
@@ -292,7 +293,7 @@ wsock wsockconnect(ipaddr addr, const char *subprotocol, const char *url,
     s->u = tcpconnect(addr, deadline);
     if(errno != 0) {err = errno; goto err1;}
     wsock_str_init(&s->url, url, strlen(url));
-    wsock_str_init(&s->subprotocol, "", 0);
+    wsock_str_init(&s->subprotocol, NULL, 0);
 
     /* Send request. */
     tcpsend(s->u, "GET ", 4, deadline);
