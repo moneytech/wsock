@@ -229,9 +229,16 @@ wsock wsockaccept(wsock s, int64_t deadline) {
             /* TODO: RFC6455, section 11.3.4 allows for multiple instances of
                this field. */
             if(hassubprotocol) {err = EPROTO; goto err2;}
-            subprotocol = wsock_hassubprotocol(wsock_str_get(&s->subprotocol),
-                  vstart, vsz, &subprotocolsz);
-            if(!subprotocol) {err = EPROTO; goto err2;}
+            const char *available = wsock_str_get(&s->subprotocol);
+            if(available) {
+                subprotocol = wsock_hassubprotocol(available, vstart, vsz,
+                    &subprotocolsz);
+                if(!subprotocol) {err = EPROTO; goto err2;}
+            }
+            else {
+                subprotocol = vstart;
+                subprotocolsz = vsz;
+            }
             hassubprotocol = 1;
             wsock_str_init(&as->subprotocol, subprotocol, subprotocolsz);
             continue;

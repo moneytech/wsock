@@ -61,7 +61,8 @@ libwsock_la_CFLAGS = \
 check_PROGRAMS = \
     tests/e2e \
     tests/url \
-    tests/subprotocol
+    tests/subprotocol \
+    tests/pingpong
 
 LDADD = libwsock.la
 

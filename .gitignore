@@ -26,5 +26,6 @@ tests/.dirstamp
 tests/e2e
 tests/url
 tests/subprotocol
+tests/pingpong
 tests/*.log
 tests/*.trs
