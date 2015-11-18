@@ -246,6 +246,18 @@ wsock wsockaccept(wsock s, int64_t deadline) {
     }
     if(!hasupgrade || !hasconnection || !haskey) {err = EPROTO; goto err2;}
 
+    /* If the subprotocol was not specified by the client, we still want to
+       use one of the suerver-supported protocols locally. */
+    if(!subprotocol) {
+        const char *available = wsock_str_get(&s->subprotocol);
+        if(available) {
+            size_t asz = 0;
+            while(available[asz] != 0 && available[asz] != ',')
+                ++asz;
+            wsock_str_init(&as->subprotocol, available, asz);
+        }
+    }
+
     /* Send reply. */
     const char *lit1 =
         "HTTP/1.1 101 Switching Protocols\r\n"

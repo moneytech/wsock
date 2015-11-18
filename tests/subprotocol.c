@@ -62,7 +62,6 @@ int main() {
     wsockclose(ls);
 
     /* Subprotocol used by server but not by client. */
-/*
     ls = wsocklisten(addr, "sp1", 10);
     assert(ls);
     go(client(NULL, NULL));
@@ -71,7 +70,6 @@ int main() {
     assert(wsock_str_eq(wsocksubprotocol(s), "sp1"));
     wsockclose(s);
     wsockclose(ls);
-*/
 
     /* Same subprotocol used by both server and client. */
     ls = wsocklisten(addr, "sp1", 10);
