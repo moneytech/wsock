@@ -38,6 +38,13 @@ coroutine void client(const char *requested, const char *expected) {
     wsockclose(s);
 }
 
+coroutine void badclient(const char *requested, int expected) {
+    ipaddr addr = ipremote("127.0.0.1", 5555, 0, -1);
+    wsock s = wsockconnect(addr, requested, "/", -1);
+    assert(!s);
+    assert(errno == expected);
+}
+
 int main() {
     ipaddr addr = iplocal("127.0.0.1", 5555, 0);
 
@@ -92,13 +99,10 @@ int main() {
     wsockclose(ls);
 
     /* Client asking for subprotocol not supported by server. */
-/*
     ls = wsocklisten(addr, "sp1,sp2,sp3", 10);
     assert(ls);
-    go(client("sp4", "sp4"));
-    wsockclose(s);
+    go(badclient("sp4", ECONNRESET));
     wsockclose(ls);
-*/
 
     /* Client selecting two of the server's subprotocols. First one should
        be preferred by the server. */
