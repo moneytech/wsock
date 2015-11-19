@@ -62,7 +62,8 @@ check_PROGRAMS = \
     tests/e2e \
     tests/url \
     tests/subprotocol \
-    tests/pingpong
+    tests/pingpong \
+    tests/fragments
 
 LDADD = libwsock.la
 

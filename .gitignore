@@ -27,5 +27,6 @@ tests/e2e
 tests/url
 tests/subprotocol
 tests/pingpong
+tests/fragments
 tests/*.log
 tests/*.trs
