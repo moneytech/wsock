@@ -2,6 +2,8 @@
 
 wsock is WebSocket library for [libmill](http://libmill.org)
 
+**The project is under construction!**
+
 # Reference
 
 **wsock wsocklisten(ipaddr addr, const char *subprotocol, int backlog);**
