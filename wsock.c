@@ -185,6 +185,7 @@ wsock wsockaccept(wsock s, int64_t deadline) {
     int hasupgrade = 0;
     int hasconnection = 0;
     int haskey = 0;
+    int seensubprotocol = 0;
     int hassubprotocol = 0;
     const char *subprotocol = NULL;
     size_t subprotocolsz = 0;
@@ -228,25 +229,32 @@ wsock wsockaccept(wsock s, int64_t deadline) {
             continue;
         }
         if(nsz == 22 && memcmp(nstart, "Sec-WebSocket-Protocol", 22) == 0) {
-            /* TODO: RFC6455, section 11.3.4 allows for multiple instances of
-               this field. */
-            if(hassubprotocol) {err = EPROTO; goto err2;}
-            const char *available = wsock_str_get(&s->subprotocol);
-            if(available) {
-                subprotocol = wsock_hassubprotocol(available, vstart, vsz,
-                    &subprotocolsz);
-                if(!subprotocol) {err = EPROTO; goto err2;}
+            seensubprotocol = 1;
+            /* RFC6455, section 11.3.4 allows for multiple instances of
+               this field. Therefore we are going to ignore it once we have
+               a subprotocol selected. */
+            if(!hassubprotocol) {
+                const char *available = wsock_str_get(&s->subprotocol);
+                if(available) {
+                    subprotocol = wsock_hassubprotocol(available, vstart, vsz,
+                        &subprotocolsz);
+                    /* No matching subprotocol? Never mind, there may be one
+                       present in following instance of this field. */
+                    if(!subprotocol)
+                        continue;
+                }
+                else {
+                    subprotocol = vstart;
+                    subprotocolsz = vsz;
+                }
+                hassubprotocol = 1;
+                wsock_str_init(&as->subprotocol, subprotocol, subprotocolsz);
             }
-            else {
-                subprotocol = vstart;
-                subprotocolsz = vsz;
-            }
-            hassubprotocol = 1;
-            wsock_str_init(&as->subprotocol, subprotocol, subprotocolsz);
             continue;
         }
     }
     if(!hasupgrade || !hasconnection || !haskey) {err = EPROTO; goto err2;}
+    if(seensubprotocol && !hassubprotocol) {err = EPROTO; goto err2;}
 
     /* If the subprotocol was not specified by the client, we still want to
        use one of the suerver-supported protocols locally. */
