@@ -48,6 +48,9 @@
 /* Set if wsockdone() was already called. */
 #define WSOCK_DONE 8
 
+/* Used when hashing WebSocket keys. See RFC 6455, chapter 4. */
+static const char *wsock_uuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+
 struct wsock {
     tcpsock u;
     int flags;
@@ -219,9 +222,8 @@ wsock wsockaccept(wsock s, int64_t deadline) {
             int i;
             for(i = 0; i != vsz; ++i)
                 wsock_sha1_hashbyte(&sha1, vstart[i]);
-            const char *uuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
             for(i = 0; i != 36; ++i)
-                wsock_sha1_hashbyte(&sha1, uuid[i]);
+                wsock_sha1_hashbyte(&sha1, wsock_uuid[i]);
             haskey = 1;
             continue;
         }
@@ -267,7 +269,6 @@ wsock wsockaccept(wsock s, int64_t deadline) {
     tcpsend(as->u, lit1, strlen(lit1), deadline);
     if(errno != 0) {err = errno; goto err2;}
     char key[32];
-    wsock_sha1_result(&sha1);
     sz = wsock_base64_encode(wsock_sha1_result(&sha1), 20, key, sizeof(key));
     assert(sz > 0);
     tcpsend(as->u, key, sz, deadline);
@@ -326,14 +327,15 @@ wsock wsockconnect(ipaddr addr, const char *subprotocol, const char *url,
         "Sec-WebSocket-Key: ";
     tcpsend(s->u, lit1, strlen(lit1), deadline);
     if(errno != 0) {err = errno; goto err2;}
-    uint8_t nonce[16];
+    uint32_t nonce[4];
     int i;
-    for(i = 0; i != 8; ++i)
-        ((uint16_t*)  nonce)[i] = wsock_random() & 0xffff;
+    for(i = 0; i != 4; ++i)
+        nonce[i] = wsock_random();
     char swsk[32];
-    int swsk_len = wsock_base64_encode(nonce, 16, swsk, sizeof(swsk));
-    assert(swsk_len > 0);
-    tcpsend(s->u, swsk, swsk_len, deadline);
+    int swsksz = wsock_base64_encode((uint8_t*)nonce, sizeof(nonce),
+        swsk, sizeof(swsk));
+    assert(swsksz > 0);
+    tcpsend(s->u, swsk, swsksz, deadline);
     if(errno != 0) {err = errno; goto err2;}
     if(subprotocol) {
         tcpsend(s->u, "\r\nSec-WebSocket-Protocol: ", 26, deadline);
@@ -392,7 +394,20 @@ wsock wsockconnect(ipaddr addr, const char *subprotocol, const char *url,
         }
         if(nsz == 20 && memcmp(nstart, "Sec-WebSocket-Accept", 20) == 0) {
             if(haskey) {err = EPROTO; goto err2;}
-            /* TODO */
+            /* Compute the expected value of the key. */
+            struct wsock_sha1 sha1;
+            wsock_sha1_init(&sha1);
+            for(i = 0; i != swsksz; ++i)
+                wsock_sha1_hashbyte(&sha1, swsk[i]);
+            for(i = 0; i != 36; ++i)
+                wsock_sha1_hashbyte(&sha1, wsock_uuid[i]);
+            char key[32];
+            size_t keysz = wsock_base64_encode(wsock_sha1_result(&sha1), 20,
+                key, sizeof(key));
+            assert(sz > 0);
+            /* Check whether the received key matches the expected one. */
+            if(vsz != keysz || memcmp(vstart, key, vsz) != 0) {
+                err = EPROTO; goto err2;}
             haskey = 1;
             continue;
         }
@@ -450,8 +465,7 @@ size_t wsocksend(wsock s, const void *msg, size_t len, int64_t deadline) {
     }
     uint8_t mask[4];
     if(s->flags & WSOCK_CLIENT) {
-        ((uint16_t*)mask)[0] = (uint16_t)wsock_random();
-        ((uint16_t*)mask)[1] = (uint16_t)wsock_random();
+        *((uint32_t*)mask) = wsock_random();
         buf[1] |= 0x80;
         memcpy(buf + sz, mask, 4);
         sz += 4;

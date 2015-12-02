@@ -23,6 +23,8 @@
 #ifndef WSOCK_RANDOM_INCLUDED
 #define WSOCK_RANDOM_INCLUDED
 
-int wsock_random(void);
+#include <stdint.h>
+
+uint32_t wsock_random(void);
 
 #endif

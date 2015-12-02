@@ -21,20 +21,21 @@
 */
 
 #include <assert.h>
-#include <stdlib.h>
-#include <sys/time.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "random.h"
 
-int wsock_random(void) {
-    static int seeded = 0;
-    if(!seeded) {
-        struct timeval tv;
-        int rc = gettimeofday(&tv, NULL);
-        assert(rc != -1);
-        srandom((int)tv.tv_usec);
-        seeded = 1;
+static int mill_urandom = -1;
+
+uint32_t wsock_random(void) {
+    if(mill_urandom < 0) {
+        mill_urandom = open("/dev/urandom", O_RDONLY);
+        assert(mill_urandom >= 0);
     }
-    return random();
+    uint32_t result;
+    ssize_t nbytes = read(mill_urandom, &result, sizeof(result));
+    assert(nbytes == sizeof(result));
+    return result;
 }
 
