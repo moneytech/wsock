@@ -202,8 +202,7 @@ wsock wsockaccept(wsock s, int64_t deadline) {
             err = EPROTO; goto err2;}
         size_t nsz = nend - nstart - 1;
         char *vstart = nend + 1;
-        char *vend = (char*)memchr(vstart, ' ', lend - vstart);
-        if(vend) {err = EPROTO; goto err2;}
+        /* TODO: Trim trailing whitespace */
         size_t vsz = lend - vstart;
         if(nsz == 7 && memcmp(nstart, "Upgrade", 7) == 0) {
             if(hasupgrade || vsz != 9 || memcmp(vstart, "websocket", 9) != 0) {
@@ -385,8 +384,7 @@ wsock wsockconnect(ipaddr addr, const char *subprotocol, const char *url,
             err = EPROTO; goto err2;}
         size_t nsz = nend - nstart - 1;
         char *vstart = nend + 1;
-        char *vend = (char*)memchr(vstart, ' ', lend - vstart);
-        if(vend) {err = EPROTO; goto err2;}
+        /* TODO: Trim trailing whitespace. */
         size_t vsz = lend - vstart;
         if(nsz == 7 && memcmp(nstart, "Upgrade", 7) == 0) {
             if(hasupgrade || vsz != 9 || memcmp(vstart, "websocket", 9) != 0) {
