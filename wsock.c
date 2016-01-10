@@ -204,19 +204,19 @@ wsock wsockaccept(wsock s, int64_t deadline) {
         char *vstart = nend + 1;
         /* TODO: Trim trailing whitespace */
         size_t vsz = lend - vstart;
-        if(nsz == 7 && memcmp(nstart, "Upgrade", 7) == 0) {
+        if(nsz == 7 && strncasecmp(nstart, "Upgrade", 7) == 0) {
             if(hasupgrade || vsz != 9 || memcmp(vstart, "websocket", 9) != 0) {
                 err = EPROTO; goto err2;}
             hasupgrade = 1;
             continue;
         }
-        if(nsz == 10 && memcmp(nstart, "Connection", 10) == 0) {
+        if(nsz == 10 && strncasecmp(nstart, "Connection", 10) == 0) {
             if(hasconnection || vsz != 7 || memcmp(vstart, "Upgrade", 7) != 0) {
                 err = EPROTO; goto err2;}
             hasconnection = 1;
             continue;
         }
-        if(nsz == 17 && memcmp(nstart, "Sec-WebSocket-Key", 17) == 0) {
+        if(nsz == 17 && strncasecmp(nstart, "Sec-WebSocket-Key", 17) == 0) {
             if(haskey) {err = EPROTO; goto err2;}
             wsock_sha1_init(&sha1);
             int i;
@@ -227,7 +227,8 @@ wsock wsockaccept(wsock s, int64_t deadline) {
             haskey = 1;
             continue;
         }
-        if(nsz == 22 && memcmp(nstart, "Sec-WebSocket-Protocol", 22) == 0) {
+        if(nsz == 22 &&
+              strncasecmp(nstart, "Sec-WebSocket-Protocol", 22) == 0) {
             seensubprotocol = 1;
             /* RFC6455, section 11.3.4 allows for multiple instances of
                this field. Therefore we are going to ignore it once we have
@@ -386,19 +387,19 @@ wsock wsockconnect(ipaddr addr, const char *subprotocol, const char *url,
         char *vstart = nend + 1;
         /* TODO: Trim trailing whitespace. */
         size_t vsz = lend - vstart;
-        if(nsz == 7 && memcmp(nstart, "Upgrade", 7) == 0) {
+        if(nsz == 7 && strncasecmp(nstart, "Upgrade", 7) == 0) {
             if(hasupgrade || vsz != 9 || memcmp(vstart, "websocket", 9) != 0) {
                 err = EPROTO; goto err2;}
             hasupgrade = 1;
             continue;
         }
-        if(nsz == 10 && memcmp(nstart, "Connection", 10) == 0) {
+        if(nsz == 10 && strncasecmp(nstart, "Connection", 10) == 0) {
             if(hasconnection || vsz != 7 || memcmp(vstart, "Upgrade", 7) != 0) {
                 err = EPROTO; goto err2;}
             hasconnection = 1;
             continue;
         }
-        if(nsz == 20 && memcmp(nstart, "Sec-WebSocket-Accept", 20) == 0) {
+        if(nsz == 20 && strncasecmp(nstart, "Sec-WebSocket-Accept", 20) == 0) {
             if(haskey) {err = EPROTO; goto err2;}
             /* Compute the expected value of the key. */
             struct wsock_sha1 sha1;
@@ -417,7 +418,8 @@ wsock wsockconnect(ipaddr addr, const char *subprotocol, const char *url,
             haskey = 1;
             continue;
         }
-        if(nsz == 22 && memcmp(nstart, "Sec-WebSocket-Protocol", 22) == 0) {
+        if(nsz == 22 &&
+              strncasecmp(nstart, "Sec-WebSocket-Protocol", 22) == 0) {
             if(hassubprotocol) {err = EPROTO; goto err2;}
             for(i = 0; i != vsz; ++i)
                 if(vstart[i] == ',') {err = EPROTO; goto err2;}
