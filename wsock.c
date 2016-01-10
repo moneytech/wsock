@@ -197,12 +197,12 @@ wsock wsockaccept(wsock s, int64_t deadline) {
             break;
         lend = buf + sz;
         char *nstart = buf;
-        char *nend = (char*)memchr(buf, ' ', lend - nstart);
-        if(!nend || nend - nstart < 1 || nend[-1] != ':') {
-            err = EPROTO; goto err2;}
-        size_t nsz = nend - nstart - 1;
+        char *nend = (char*)memchr(buf, ':', lend - nstart);
+        size_t nsz = nend - nstart;
+        if(!nend || nsz < 1) {err = EPROTO; goto err2;}
         char *vstart = nend + 1;
-        /* TODO: Trim trailing whitespace */
+        while(vstart != lend && isspace(*vstart))
+            ++vstart;
         size_t vsz = lend - vstart;
         if(nsz == 7 && strncasecmp(nstart, "Upgrade", 7) == 0) {
             if(hasupgrade || vsz != 9 || memcmp(vstart, "websocket", 9) != 0) {
@@ -380,12 +380,12 @@ wsock wsockconnect(ipaddr addr, const char *subprotocol, const char *url,
             break;
         lend = buf + sz;
         char *nstart = buf;
-        char *nend = (char*)memchr(buf, ' ', lend - nstart);
-        if(!nend || nend - nstart < 1 || nend[-1] != ':') {
-            err = EPROTO; goto err2;}
-        size_t nsz = nend - nstart - 1;
+        char *nend = (char*)memchr(buf, ':', lend - nstart);
+        size_t nsz = nend - nstart;
+        if(!nend || nsz < 1) {err = EPROTO; goto err2;}
         char *vstart = nend + 1;
-        /* TODO: Trim trailing whitespace. */
+        while(vstart != lend && isspace(*vstart))
+            ++vstart;
         size_t vsz = lend - vstart;
         if(nsz == 7 && strncasecmp(nstart, "Upgrade", 7) == 0) {
             if(hasupgrade || vsz != 9 || memcmp(vstart, "websocket", 9) != 0) {
